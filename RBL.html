@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<meta charset="UTF-8">
+<title>AGC Daily Faucet</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+
+<style>
+
+body{
+font-family:Arial;
+background:#0f172a;
+color:white;
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
+}
+
+.card{
+background:#1e293b;
+padding:30px;
+border-radius:12px;
+width:340px;
+text-align:center;
+box-shadow:0px 0px 20px rgba(0,0,0,0.4);
+}
+
+h2{
+margin-bottom:10px;
+}
+
+button{
+
+width:100%;
+padding:12px;
+margin-top:12px;
+border:none;
+border-radius:8px;
+background:#6366f1;
+color:white;
+font-size:16px;
+cursor:pointer;
+
+}
+
+button:hover{
+background:#4f46e5;
+}
+
+.status{
+margin-top:15px;
+font-size:14px;
+color:#94a3b8;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="card">
+
+<h2>AGC Faucet</h2>
+
+<p id="wallet">Wallet: Not connected</p>
+
+<button onclick="connectWallet()">Connect Wallet</button>
+
+<button onclick="claimToken()">Claim 0.1 AGC</button>
+
+<p class="status" id="status">Status: Ready</p>
+
+</div>
+
+<script>
+
+let provider;
+let signer;
+let userAddress;
+
+const contractAddress="0x94f6b5d4a5972116FF5B5161A462fe616BFCd115";
+
+const abi=[
+
+"function claim() public",
+"function lastClaim(address) view returns(uint256)"
+
+];
+
+async function connectWallet(){
+
+if(!window.ethereum){
+
+alert("Please install MetaMask");
+
+return;
+
+}
+
+provider=new ethers.providers.Web3Provider(window.ethereum);
+
+await provider.send("eth_requestAccounts",[]);
+
+signer=provider.getSigner();
+
+userAddress=await signer.getAddress();
+
+document.getElementById("wallet").innerText=
+"Wallet: "+userAddress.substring(0,6)+"..."+userAddress.slice(-4);
+
+document.getElementById("status").innerText="Status: Wallet Connected";
+
+checkTimer();
+
+}
+
+async function claimToken(){
+
+if(!signer){
+
+alert("Connect wallet first");
+
+return;
+
+}
+
+const contract=new ethers.Contract(contractAddress,abi,signer);
+
+try{
+
+document.getElementById("status").innerText="Sending transaction...";
+
+const tx=await contract.claim();
+
+await tx.wait();
+
+document.getElementById("status").innerText="Claim successful!";
+
+checkTimer();
+
+}catch(err){
+
+document.getElementById("status").innerText="Claim failed or wait 24h";
+
+}
+
+}
+
+async function checkTimer(){
+
+try{
+
+const contract=new ethers.Contract(contractAddress,abi,provider);
+
+const last=await contract.lastClaim(userAddress);
+
+const lastTime=last.toNumber()*1000;
+
+const now=Date.now();
+
+const diff=86400000-(now-lastTime);
+
+if(diff>0){
+
+const hours=Math.floor(diff/3600000);
+
+const mins=Math.floor((diff%3600000)/60000);
+
+document.getElementById("status").innerText=
+
+"Next claim in "+hours+"h "+mins+"m";
+
+}else{
+
+document.getElementById("status").innerText="You can claim now";
+
+}
+
+}catch(e){}
+
+}
+
+</script>
+
+</body>
+
+</html>
